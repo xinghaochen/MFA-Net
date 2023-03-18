@@ -9,7 +9,7 @@ Xinghao Chen<sup>1</sup>, Guijin Wang<sup>1</sup>, Hengkai Guo<sup>2</sup>, Cair
 ### Introduction
 This repository contains the demo code for [MFA-Net](https://arxiv.org/abs/1708.03416), an accurate method for skeleton-based dynamic hand gesture recognition.
 
-![framework](./doc/teaser.png)
+![framework](doc/teaser.png)
 <div align=center>
 Figure 1: Framework of MFA-Net.
 </div>
