@@ -1,0 +1,1 @@
+rename 's/DHG2016_MFA_Net_vae_14/weights_DHG2016_MFA_Net_vae_14/' DHG2016_MFA_Net_vae_14*

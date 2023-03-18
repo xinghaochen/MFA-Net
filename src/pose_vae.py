@@ -4,6 +4,7 @@ Reference: "Auto-Encoding Variational Bayes" https://arxiv.org/abs/1312.6114
 '''
 import numpy as np
 import os
+import sys
 import matplotlib.pyplot as plt
 from scipy.stats import norm
 
@@ -20,8 +21,8 @@ from keras import metrics
 from keras.datasets import mnist
 from keras.callbacks import ModelCheckpoint, LearningRateScheduler
 
-import gesture_dataset_shrec17
-import gesture_dataset
+import gesture_dataset_shrec17_aug as gesture_dataset_shrec17
+import gesture_dataset_DHG2016
 from data_util import show_skeleton, show_two_skeleton
 from numpy.matlib import repmat
 
@@ -30,14 +31,18 @@ np.random.seed(10000)
 # is_train = False
 # is_test = True
 
+joint_num_dict = {'DHG2016': 22, 'SHREC17': 22, 'FHAD': 21}
+
 # Custom loss layer
 class CustomVariationalLayer(Layer):
-    def __init__(self, **kwargs):
+    def __init__(self, dataset, **kwargs):
         self.is_placeholder = True
+        print kwargs
+        self.dataset = dataset
         super(CustomVariationalLayer, self).__init__(**kwargs)
 
     def vae_loss(self, x, x_decoded_mean, z_log_var, z_mean):
-        original_dim = 66
+        original_dim = joint_num_dict[self.dataset] * 3
         xent_loss = original_dim * metrics.mean_squared_error(x, x_decoded_mean)
         kl_loss = -0.5 * K.sum(1 + z_log_var - K.square(z_mean) - K.exp(z_log_var), axis=-1)
         return K.mean(xent_loss + kl_loss)
@@ -56,7 +61,7 @@ class PoseVAE(object):
     def __init__(self, dataset_='DHG2016', test_id_=-1, is_train=0):
         # parameter setting
         self.batch_size = 256
-        self.original_dim = 66
+        self.original_dim = joint_num_dict[dataset_] * 3
         self.latent_dim = 20
         self.intermediate_dim = 32
         self.epochs = 50
@@ -68,7 +73,7 @@ class PoseVAE(object):
         self.save_postfix = 'pose_vae_' + self.dataset.lower()
         self.save_dir = './snapshot/'+self.save_postfix
         if not os.path.exists(self.save_dir):
-            os.mkdir(self.save_dir)
+            os.makedirs(self.save_dir)
         if self.test_id >= 0:
             self.snapshot_file = self.save_dir + '/weights_' + self.save_postfix + '_testid_{}'.format(self.test_id) + '.hdf5'
         else:
@@ -105,13 +110,19 @@ class PoseVAE(object):
         self.x_decoded_mean = self.decoder_mean(self.h_decoded)
         
         
-        self.y = CustomVariationalLayer()([self.x, self.x_decoded_mean, self.z_log_var, self.z_mean])
+        self.y = CustomVariationalLayer(self.dataset)([self.x, self.x_decoded_mean, self.z_log_var, self.z_mean])
         self.vae = Model(self.x, self.y)
         # self.vae._make_predict_function()
         self.vae.compile(optimizer='rmsprop', loss=None)
 
         if self.is_train == 0:
             self.vae.load_weights(self.snapshot_file)
+
+        # print 'start printing vae weights...'
+        # for layer in self.vae.layers:
+        #     weights = layer.get_weights()
+        #     print weights
+        # print 'finish printing vae weights...'
 
         print 'build vae done.'
 
@@ -206,9 +217,12 @@ class PoseVAE(object):
 
 
 if __name__ == "__main__":
-    dataset = 'DHG2016'
+    if len(sys.argv) < 2:
+        dataset = 'DHG2016'
+    else:
+        dataset = sys.argv[1]
     for test_id in xrange(1, 21):
-        if test_id > 1 and dataset == 'SHREC2017':
+        if test_id > 1 and dataset != 'DHG2016':
             break
         print 'Training PoseVAE for {} dataset and test_id {}'.format(dataset, test_id)
         if dataset == 'DHG2016':
@@ -217,12 +231,13 @@ if __name__ == "__main__":
             root_dir = '/home/workspace/data/handgesture/DHG2016'
             root_dir = '/home/workspace/Datasets/DHG2016'
             is_full = 0
-            data = gesture_dataset.Dataset(root_dir, is_full)
+            data = gesture_dataset_DHG2016.Dataset(root_dir, is_full)
             (x_train, y_train), (x_test, y_test) = data.load_data(test_id, is_preprocess=False, is_sub_center=True)        
-        else:
+        elif dataset == 'SHREC17':
             vae = PoseVAE(dataset, -1, 1)
             # SHREC17 hand gesture dataset
             root_dir = '/home/workspace/Datasets/HandGestureDataset_SHREC2017'
+            root_dir = '/home/workspace/data/handgesture/HandGestureDataset_SHREC2017'
             is_full = 0
             print 'begin loading data...'
             data = gesture_dataset_shrec17.Dataset(root_dir, is_full)
@@ -245,4 +260,4 @@ if __name__ == "__main__":
         print x_train
         vae.test_id = test_id
         vae.train(x_train, x_test)
-        # vae.test(x_test)
+        vae.test(x_test)

@@ -130,6 +130,8 @@ class Kinematic(object):
         I = tf.identity_matrix()
 
         ## global translation and rotation
+        #print natural_hand_joints[np.append(wrist_id, mcp_id),:].transpose(),
+        #print joints[np.append(wrist_id,mcp_id),:].transpose()
         M = tf.affine_matrix_from_points(natural_hand_joints[np.append(wrist_id, mcp_id),:].transpose(),
                                          joints[np.append(wrist_id,mcp_id),:].transpose(),
                                          shear=False, scale=False, usesvd=False)
